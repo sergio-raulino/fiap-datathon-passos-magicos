@@ -31,10 +31,7 @@ A proposta combina **análise exploratória**, **tratamento de dados**, **engenh
 ```text
 FIAP-DATATHON-PASSOS-MAGICOS/
 ├── app/
-│   ├── streamlit_app.py
-│   └── streamlit_app_upgrade.py
-│
-├── benchmark/
+│   └── streamlit_app_final.py
 │
 ├── data/
 │   ├── artifacts/
@@ -42,7 +39,6 @@ FIAP-DATATHON-PASSOS-MAGICOS/
 │   │   └── model_pipeline.joblib
 │   ├── processed/
 │   ├── raw/
-│   └── trusted/
 │
 ├── notebooks/
 │   ├── 01_exploracao.ipynb
@@ -57,12 +53,12 @@ FIAP-DATATHON-PASSOS-MAGICOS/
 │   ├── 03_analise_P9_Risco_ML.ipynb
 │   ├── 03_analise_P10_Efetiv_Prog.ipynb
 │   ├── 03_analise_P11_Adic_Criat.ipynb
-│   ├── 04_modelagem_risco_defasagem.ipynb
 │   └── 04_modelagem_risco_defasagem_adaptado.ipynb
 │
 ├── presentation/
 │   └── storytelling.doc
 │   └── storytelling.pdf
+│   └── 026-03-22 23-37-56.mp4 (vídeo explicativo da entrega final)
 │
 ├── src/
 │   ├── __init__.py

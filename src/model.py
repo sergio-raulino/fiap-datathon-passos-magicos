@@ -93,7 +93,7 @@ def train_model(
     save_artifacts: bool = True,
 ) -> dict[str, Any]:
     print("Arquivo de treino:", processed_path)
-    
+
     df = load_training_data(processed_path)
     X, y = prepare_training_features(df, target_column=target_column)
 
@@ -108,7 +108,6 @@ def train_model(
     pipeline = build_pipeline()
     pipeline.fit(X_train, y_train)
 
-    # DEBUG — ver ordem das classes
     try:
         print("Classes do modelo:", pipeline.named_steps["model"].classes_)
     except Exception:
@@ -137,15 +136,20 @@ def train_model(
 
     artifacts = {
         "model": pipeline,
+        "pipeline": pipeline,
         "feature_columns": FEATURE_COLUMNS,
         "numeric_features": NUMERIC_FEATURES,
         "categorical_features": CATEGORICAL_FEATURES,
         "target_column": target_column,
         "metrics": metrics,
+        "artifacts_dir": str(ARTIFACTS_DIR),
+        "model_path": str(MODEL_FILE),
+        "metadata_path": str(METADATA_FILE),
     }
 
     if save_artifacts:
         ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+
         joblib.dump(pipeline, MODEL_FILE)
         joblib.dump(
             {
@@ -158,17 +162,47 @@ def train_model(
             METADATA_FILE,
         )
 
+        print(f"Pipeline salvo em: {MODEL_FILE}")
+        print(f"Metadados salvos em: {METADATA_FILE}")
+
     return artifacts
 
 
+def _resolve_model_file() -> Path:
+    candidates = [
+        MODEL_FILE,
+        ARTIFACTS_DIR / "model.joblib",
+        ARTIFACTS_DIR / "pipeline.joblib",
+        ARTIFACTS_DIR / "model.pkl",
+        ARTIFACTS_DIR / "pipeline.pkl",
+        ARTIFACTS_DIR / "artifacts.pkl",
+    ]
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    available_files = []
+    if ARTIFACTS_DIR.exists():
+        available_files = sorted([p.name for p in ARTIFACTS_DIR.iterdir() if p.is_file()])
+
+    raise FileNotFoundError(
+        f"Não encontrei artefatos do modelo em {ARTIFACTS_DIR}. "
+        "Esperado algo como model_pipeline.joblib, model.joblib, pipeline.joblib, "
+        "model.pkl, pipeline.pkl ou artifacts.pkl. "
+        f"Arquivos encontrados: {available_files}"
+    )
+
+
 def load_model() -> dict[str, Any]:
-    if not MODEL_FILE.exists():
+    if not ARTIFACTS_DIR.exists():
         raise FileNotFoundError(
-            f"Modelo não encontrado em {MODEL_FILE}. "
-            "Execute train_model() antes de subir a aplicação."
+            f"Diretório de artefatos não encontrado: {ARTIFACTS_DIR}. "
+            "Verifique se a pasta data/artifacts foi enviada ao repositório."
         )
 
-    pipeline = joblib.load(MODEL_FILE)
+    resolved_model_file = _resolve_model_file()
+    pipeline = joblib.load(resolved_model_file)
 
     metadata: dict[str, Any] = {
         "feature_columns": FEATURE_COLUMNS,
@@ -185,11 +219,15 @@ def load_model() -> dict[str, Any]:
 
     return {
         "model": pipeline,
+        "pipeline": pipeline,
         "feature_columns": metadata["feature_columns"],
         "numeric_features": metadata["numeric_features"],
         "categorical_features": metadata["categorical_features"],
         "target_column": metadata["target_column"],
         "metrics": metadata.get("metrics", {}),
+        "artifacts_dir": str(ARTIFACTS_DIR),
+        "model_path": str(resolved_model_file),
+        "metadata_path": str(METADATA_FILE),
     }
 
 
@@ -198,12 +236,14 @@ def predict_dataframe(
     model: Any = None,
     artifacts: dict[str, Any] | None = None,
 ):
-    if model is None and artifacts:
+    if artifacts is None:
+        artifacts = load_model()
+
+    if model is None:
         model = artifacts.get("model")
 
     if model is None:
-        artifacts = load_model()
-        model = artifacts["model"]
+        raise ValueError("Nenhum modelo foi carregado para predição.")
 
     X_prepared = prepare_inference_features(X, artifacts=artifacts)
     return model.predict(X_prepared)
@@ -214,12 +254,14 @@ def predict_proba_dataframe(
     model: Any = None,
     artifacts: dict[str, Any] | None = None,
 ):
-    if model is None and artifacts:
+    if artifacts is None:
+        artifacts = load_model()
+
+    if model is None:
         model = artifacts.get("model")
 
     if model is None:
-        artifacts = load_model()
-        model = artifacts["model"]
+        raise ValueError("Nenhum modelo foi carregado para predição de probabilidades.")
 
     if not hasattr(model, "predict_proba"):
         raise AttributeError("O modelo carregado não suporta predict_proba().")
