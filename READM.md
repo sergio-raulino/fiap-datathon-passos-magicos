@@ -1,22 +1,15 @@
-* visão geral do projeto
-* estrutura de pastas
-* fluxo de refinamento e análise de dados
-* seção específica de treinamento do modelo preditivo
-* instruções para execução do app Streamlit
-* roteiro coerente para apresentação em vídeo
-
-Depois do README, também deixei o texto do **`presentation/storytelling.doc`** para você colar.
-
----
-
 # README.md
 
 ````md
 # FIAP Datathon – Passos Mágicos
 
-Solução de análise de dados e modelagem preditiva para identificação de risco de defasagem escolar, construída a partir da base educacional do projeto **Passos Mágicos**.
+🔗 Repositório oficial do projeto:  
+https://github.com/sergio-raulino/fiap-datathon-passos-magicos
 
-O projeto reúne etapas de exploração, limpeza, refinamento analítico, investigação de indicadores e treinamento de um modelo de Machine Learning capaz de apoiar a identificação de alunos com maior probabilidade de risco futuro.
+🚀 Aplicação publicada no Streamlit Cloud:  
+https://fiap-datathon-paapps-magicos-wn3z9vywnccmm4zodbtyou.streamlit.app/
+
+Solução de análise de dados e modelagem preditiva para identificação de risco de defasagem escolar, construída a partir da base educacional do projeto **Passos Mágicos**.
 
 ---
 
@@ -550,127 +543,5 @@ Este projeto demonstra um pipeline completo de Ciência de Dados, cobrindo desde
 
 Mais do que prever uma classe, a solução busca transformar dados educacionais em insumos práticos para identificação antecipada de risco e apoio à tomada de decisão.
 
-````
-
+```
 ---
-
-# Texto para `presentation/storytelling.doc`
-
-```text
-FIAP Datathon – Passos Mágicos
-Storytelling da solução
-
-1. Abertura
-
-Nosso projeto foi desenvolvido para enfrentar um desafio de grande relevância social: identificar, com apoio de dados, alunos com maior risco de defasagem futura.
-
-A proposta parte de uma pergunta central:
-como transformar indicadores educacionais em inteligência analítica capaz de apoiar decisões mais rápidas, precisas e preventivas?
-
-A resposta que construímos foi uma solução completa, envolvendo exploração de dados, limpeza, análises temáticas, modelagem preditiva e uma aplicação interativa para simulação de cenários.
-
-2. Entendimento do problema
-
-O primeiro passo foi compreender o contexto do desafio e a estrutura da base de dados disponibilizada.
-
-Antes de pensar em modelo, nós precisávamos entender:
-- quais eram os indicadores disponíveis;
-- como esses indicadores se comportavam;
-- quais atributos tinham maior potencial analítico;
-- e de que forma o risco poderia ser representado de maneira útil para a predição.
-
-Essa etapa foi essencial para garantir que a solução não fosse apenas técnica, mas também coerente com o problema de negócio.
-
-3. Exploração inicial dos dados
-
-Na etapa de exploração, analisamos a base bruta para identificar:
-- colunas existentes;
-- tipos de dados;
-- valores ausentes;
-- possíveis inconsistências;
-- distribuição inicial das variáveis.
-
-Esse momento foi importante porque nos mostrou que, antes de qualquer análise mais profunda, seria necessário passar por uma etapa consistente de limpeza e padronização.
-
-4. Limpeza e refinamento
-
-Depois da exploração, fizemos a limpeza da base.
-
-Tratamos valores nulos, ajustamos tipos de dados, padronizamos colunas e organizamos os dados para formar uma base analítica mais confiável.
-
-Esse refinamento foi decisivo porque garantiu maior qualidade para as análises seguintes e reduziu o risco de conclusões distorcidas por problemas estruturais nos dados.
-
-5. Análises por indicador
-
-Com a base refinada, dividimos a investigação em blocos temáticos.
-
-Analisamos separadamente indicadores como:
-- IAN
-- IDA
-- IEG
-- IAA
-- IPS
-- IPP
-- IPV
-
-Depois disso, passamos para uma análise combinada, observando múltiplos indicadores ao mesmo tempo.
-
-Essa abordagem nos permitiu sair de uma leitura isolada das variáveis e avançar para uma visão mais integrada do perfil dos alunos.
-
-6. Construção da visão preditiva
-
-A partir dos insights obtidos nas análises, estruturamos o problema de Machine Learning.
-
-Selecionamos os atributos mais relevantes para o modelo, entre eles:
-inde, n_av, iaa, ieg, ips, ipp, ida, mat, por, ing, ipv, ian e fase_ideal.
-
-Também consolidamos a lógica de interpretação da predição:
-- classe 0 representa alto risco;
-- classe 1 representa baixo risco.
-
-Essa definição foi importante para alinhar o comportamento do modelo, os testes realizados e a interpretação final no aplicativo.
-
-7. Treinamento do modelo
-
-Na etapa de modelagem, construímos o pipeline preditivo, treinamos o modelo e salvamos os artefatos finais para reutilização na inferência.
-
-Os artefatos gerados foram:
-- model_pipeline.joblib
-- model_metadata.joblib
-
-Esses arquivos tornaram possível desacoplar o treinamento da aplicação final, permitindo que o app focasse apenas em carregar o pipeline já pronto e realizar novas previsões.
-
-8. Aplicação prática
-
-Para tornar a solução acessível e demonstrável, construímos uma aplicação em Streamlit.
-
-Nela, é possível:
-- informar manualmente os indicadores de um aluno;
-- simular cenários;
-- calcular a classe prevista;
-- visualizar a probabilidade de alto e baixo risco;
-- interpretar o resultado de forma objetiva.
-
-Essa etapa foi importante porque transformou o projeto em uma ferramenta utilizável, e não apenas em um experimento de notebook.
-
-9. Valor da solução
-
-O principal valor desta solução está na capacidade de atuar de forma preventiva.
-
-Em vez de esperar que a defasagem se consolide, a proposta é usar os dados para antecipar sinais de risco e apoiar ações mais rápidas e direcionadas.
-
-Com isso, a solução contribui para:
-- ampliar a capacidade analítica sobre o desempenho dos alunos;
-- apoiar decisões orientadas por dados;
-- priorizar acompanhamentos;
-- e fortalecer a atuação preventiva no contexto educacional.
-
-10. Encerramento
-
-Nosso projeto mostra que a combinação entre análise exploratória, tratamento de dados, modelagem preditiva e visualização interativa pode gerar valor concreto.
-
-Mais do que classificar alunos em grupos, buscamos construir uma solução que ajude a transformar dados em ação.
-
-Esse é o principal resultado do nosso trabalho:
-usar dados para enxergar antes, agir melhor e apoiar decisões com mais inteligência.
-````
