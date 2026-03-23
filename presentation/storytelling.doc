@@ -1,13 +1,195 @@
-Storytelling (muito importante)
+# Storytelling gerencial — Projeto Passos Mágicos
 
-Slides:
+## 1. Contexto do projeto
 
-Problema
-Dataset
-Limpeza
-Indicadores
-Análises
-Insights
-Modelo
-App
-Conclusão
+O projeto Passos Mágicos tem como missão acompanhar a evolução educacional dos alunos e criar condições para que eles se desenvolvam de forma consistente ao longo do tempo.
+Dentro desse contexto, surge um desafio importante para a gestão:
+
+**como identificar, com antecedência, alunos que apresentam maior risco de defasagem ou perda de desempenho?**
+
+A resposta para essa pergunta exige mais do que observação pontual.
+É necessário analisar dados históricos, entender padrões e transformar informação em conhecimento útil para tomada de decisão.
+
+Foi com esse objetivo que desenvolvemos este projeto de análise e modelagem preditiva.
+
+---
+
+## 2. Visão geral da abordagem
+
+A solução foi construída seguindo uma lógica progressiva, em quatro etapas principais:
+
+1. Entendimento e exploração dos dados
+2. Refinamento e análise dos indicadores
+3. Construção de um modelo preditivo
+4. Disponibilização de uma ferramenta para apoio à decisão
+
+O foco não foi apenas criar um modelo, mas construir uma visão analítica que permita compreender o comportamento dos alunos ao longo do tempo.
+
+---
+
+## 3. Exploração inicial dos dados
+
+Na primeira etapa, realizamos a exploração da base disponível, com o objetivo de responder perguntas fundamentais:
+
+* quais informações estão disponíveis;
+* como os dados estão organizados;
+* quais indicadores são mais relevantes;
+* quais inconsistências precisam ser tratadas;
+* e quais variáveis podem explicar melhor o desempenho do aluno.
+
+Esse momento foi essencial para garantir que a análise fosse feita sobre dados confiáveis e bem estruturados.
+
+---
+
+## 4. Limpeza e padronização
+
+Após a exploração, foi necessário preparar a base para análise.
+
+Foram realizados ajustes como:
+
+* padronização de colunas;
+* tratamento de valores ausentes;
+* correção de tipos de dados;
+* organização das fases educacionais;
+* seleção dos atributos mais relevantes.
+
+Essa etapa permitiu transformar uma base bruta em uma base analítica consistente, adequada para estudos mais aprofundados.
+
+Do ponto de vista gerencial, esse passo é fundamental, pois decisões baseadas em dados só são confiáveis quando os dados são tratados corretamente.
+
+---
+
+## 5. Análise dos indicadores educacionais
+
+Com a base refinada, iniciamos a análise detalhada dos indicadores utilizados no acompanhamento dos alunos.
+
+Cada indicador foi estudado separadamente, para entender seu comportamento e sua relação com o desempenho escolar.
+
+Entre os principais indicadores analisados estão:
+
+* IAN
+* IDA
+* IEG
+* IAA
+* IPS
+* IPP
+* IPV
+* INDE
+* notas de português, matemática e inglês
+* número de avaliações
+* fase educacional do aluno
+
+Depois da análise individual, passamos para uma análise combinada, observando como os indicadores se relacionam entre si.
+
+Essa etapa foi importante para identificar padrões que não aparecem quando se observa apenas uma variável isolada.
+
+Do ponto de vista da gestão, isso permite uma visão mais completa do perfil do aluno.
+
+---
+
+## 6. Construção da visão de risco
+
+Com base nas análises realizadas, estruturamos uma pergunta central:
+
+**é possível prever, a partir dos indicadores atuais, se um aluno tem maior ou menor risco de apresentar defasagem no futuro?**
+
+Para responder essa pergunta, definimos uma variável de risco e selecionamos os atributos mais relevantes para a predição.
+
+Entre eles:
+
+* inde
+* n_av
+* iaa
+* ieg
+* ips
+* ipp
+* ida
+* mat
+* por
+* ing
+* ipv
+* ian
+* fase_ideal
+
+Essas variáveis formam o conjunto de informações usado para estimar o risco de cada aluno.
+
+---
+
+## 7. Modelagem preditiva
+
+Na etapa seguinte, construímos um modelo de Machine Learning capaz de identificar padrões nos dados históricos e utilizá-los para prever novos casos.
+
+O modelo foi treinado com registros anteriores, aprendendo quais combinações de indicadores estão mais associadas a maior risco e quais estão associadas a menor risco.
+
+O resultado da predição é apresentado em duas classes:
+
+* Classe 0 — maior risco
+* Classe 1 — menor risco
+
+Além da classe, o modelo também fornece uma probabilidade, indicando o grau de confiança da previsão.
+
+Isso permite uma interpretação mais rica, não apenas binária.
+
+Para a gestão, essa informação é valiosa porque permite priorizar ações.
+
+---
+
+## 8. Transformação da análise em ferramenta
+
+Para tornar o modelo utilizável na prática, desenvolvemos uma aplicação interativa.
+
+Nessa aplicação, é possível:
+
+* informar os indicadores de um aluno;
+* simular diferentes cenários;
+* calcular o risco estimado;
+* visualizar as probabilidades;
+* interpretar o resultado de forma clara.
+
+Isso transforma a análise em um instrumento de apoio à decisão, e não apenas em um estudo técnico.
+
+---
+
+## 9. Valor para a gestão
+
+A principal contribuição do projeto é permitir uma atuação preventiva.
+
+Em vez de agir apenas quando o problema aparece, a solução permite:
+
+* identificar sinais de risco com antecedência;
+* direcionar acompanhamento para quem mais precisa;
+* avaliar o impacto das ações;
+* apoiar decisões com base em dados;
+* melhorar a eficiência do acompanhamento educacional.
+
+Do ponto de vista gerencial, isso significa:
+
+mais previsibilidade,
+mais controle,
+e melhor uso dos recursos disponíveis.
+
+---
+
+## 10. Possibilidades de evolução
+
+A solução pode evoluir para:
+
+* painéis gerenciais;
+* acompanhamento contínuo dos alunos;
+* atualização automática dos dados;
+* explicação detalhada das previsões;
+* integração com sistemas institucionais.
+
+Isso abre caminho para uma gestão cada vez mais orientada por dados.
+
+---
+
+## 11. Conclusão
+
+Este projeto demonstra que, quando os dados são bem tratados e analisados, é possível transformar informação em inteligência.
+
+A combinação entre análise, modelagem preditiva e ferramenta interativa permite antecipar riscos, apoiar decisões e fortalecer o acompanhamento educacional.
+
+Mais do que prever resultados, a proposta é permitir agir antes que o problema aconteça.
+
+E esse é o principal valor da solução desenvolvida para o Passos Mágicos.
