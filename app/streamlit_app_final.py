@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import pickle
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -35,6 +36,23 @@ st.set_page_config(
 )
 
 DEFAULT_ANALYTIC_FILE = ROOT_DIR / "data" / "processed" / "base_PEDE_consolidada_analitica.parquet"
+ARTIFACTS_DIR = ROOT_DIR / "data" / "artifacts"
+
+MODEL_FEATURES = [
+    "inde",
+    "n_av",
+    "iaa",
+    "ieg",
+    "ips",
+    "ipp",
+    "ida",
+    "mat",
+    "por",
+    "ing",
+    "ipv",
+    "ian",
+    "fase_ideal",
+]
 
 
 # =========================================================
@@ -71,23 +89,28 @@ def df_to_download_bytes(df: pd.DataFrame, filetype: str = "csv") -> bytes:
     return df.to_csv(index=False).encode("utf-8-sig")
 
 
-def classify_risk(prob_classe_1: float | None) -> str:
-    if prob_classe_1 is None:
+def risk_level_from_prob_risk(prob_risk: float | None) -> str:
+    if prob_risk is None:
         return "Indisponível"
-    if prob_classe_1 < 0.30:
+    if prob_risk < 0.30:
         return "Baixo"
-    if prob_classe_1 < 0.70:
+    if prob_risk < 0.70:
         return "Moderado"
     return "Alto"
 
 
 def prediction_label(pred: Any) -> str:
-    if pred in [1, "1", True]:
+    """
+    Conforme seu teste:
+    - classe 0 = alto risco
+    - classe 1 = baixo risco
+    """
+    if pred in [0, "0", False]:
         return "Com risco de defasagem futura"
     return "Sem risco de defasagem futura"
 
 
-def build_prediction_explanation(input_row: pd.Series, prob_classe_1: float | None) -> list[str]:
+def build_prediction_explanation(input_row: pd.Series, prob_risk: float | None) -> list[str]:
     reasons: list[str] = []
 
     def val(col: str, default: float = 0.0) -> float:
@@ -97,30 +120,36 @@ def build_prediction_explanation(input_row: pd.Series, prob_classe_1: float | No
         except Exception:
             return default
 
-    if val("ian") >= 8:
-        reasons.append("O IAN informado está elevado, e esse indicador tem forte peso positivo para a classe de risco no modelo treinado.")
-
-    if val("n_av") >= 6:
-        reasons.append("O número de avaliações está alto, variável que também contribuiu positivamente para a classe 1 no treinamento.")
-
-    if val("ipv") >= 7:
-        reasons.append("O IPV está em patamar alto, o que tende a aumentar a probabilidade estimada de classe 1.")
-
-    if val("ieg") >= 7:
-        reasons.append("O IEG está elevado, característica associada a maior chance de classe 1 no modelo atual.")
-
-    if val("ipp") >= 7:
-        reasons.append("O IPP informado reforça a tendência para classe 1 no padrão aprendido pela regressão logística.")
-
     fase = str(input_row.get("fase_ideal", "")).strip()
+
+    # sinais favoráveis
+    if val("ian") >= 7:
+        reasons.append("O IAN está elevado, o que neste perfil tende a favorecer um cenário de menor risco.")
+    if val("n_av") >= 6:
+        reasons.append("O número de avaliações está alto, indicando padrão mais próximo de baixo risco.")
+    if val("ipv") >= 7:
+        reasons.append("O IPV está alto, contribuindo para uma previsão mais favorável.")
+    if val("ieg") >= 7:
+        reasons.append("O IEG elevado reforça um perfil associado a menor risco.")
+    if val("ipp") >= 7:
+        reasons.append("O IPP alto também aproxima o registro de um cenário de baixo risco.")
     if "Fase 7" in fase:
-        reasons.append("A fase ideal selecionada está entre as categorias que mais empurram a previsão para a classe 1.")
+        reasons.append("A fase ideal informada está compatível com um cenário que, neste modelo, tende a menor risco.")
 
-    if val("ian") <= 4 and val("n_av") <= 3 and val("ipv") <= 4 and val("ieg") <= 4:
-        reasons.append("Os indicadores-chave estão baixos, o que tende a puxar a predição para a classe 0 neste modelo.")
+    # sinais de risco
+    if val("ian") <= 4:
+        reasons.append("O IAN baixo é um sinal que aproxima a previsão de maior risco.")
+    if val("n_av") <= 3:
+        reasons.append("Poucas avaliações informadas tendem a puxar a predição para maior risco.")
+    if val("ipv") <= 4:
+        reasons.append("O IPV baixo reforça a possibilidade de maior risco.")
+    if val("ieg") <= 4:
+        reasons.append("O IEG baixo também é compatível com um cenário mais crítico.")
+    if val("ipp") <= 4:
+        reasons.append("O IPP baixo contribui para maior probabilidade de risco.")
 
-    if prob_classe_1 is not None:
-        level = classify_risk(prob_classe_1).lower()
+    if prob_risk is not None:
+        level = risk_level_from_prob_risk(prob_risk).lower()
         reasons.append(f"A probabilidade estimada foi classificada como risco {level}.")
 
     if not reasons:
@@ -135,14 +164,23 @@ def format_prediction_output(result_df: pd.DataFrame) -> pd.DataFrame:
     if "predicao" in output.columns:
         output["resultado_predicao"] = output["predicao"].apply(prediction_label)
 
-    if "probabilidade_classe_1" in output.columns:
-        output["risco_estimado"] = output["probabilidade_classe_1"].apply(classify_risk)
-        output["probabilidade_classe_1_pct"] = output["probabilidade_classe_1"].apply(lambda x: f"{float(x):.2%}")
-
     if "probabilidade_classe_0" in output.columns:
+        output["probabilidade_alto_risco"] = output["probabilidade_classe_0"]
+        output["risco_estimado"] = output["probabilidade_classe_0"].apply(risk_level_from_prob_risk)
         output["probabilidade_classe_0_pct"] = output["probabilidade_classe_0"].apply(lambda x: f"{float(x):.2%}")
 
+    if "probabilidade_classe_1" in output.columns:
+        output["probabilidade_baixo_risco"] = output["probabilidade_classe_1"]
+        output["probabilidade_classe_1_pct"] = output["probabilidade_classe_1"].apply(lambda x: f"{float(x):.2%}")
+
     return output
+
+
+def find_first_existing(paths: list[Path]) -> Path | None:
+    for path in paths:
+        if path.exists():
+            return path
+    return None
 
 
 # =========================================================
@@ -181,13 +219,61 @@ predict_proba_fn = resolve_callable(
 
 
 # =========================================================
+# Fallback local de artefatos
+# =========================================================
+def load_local_artifacts_fallback() -> dict[str, Any]:
+    """
+    Fallback para quando src/model.py não estiver importável.
+    Tenta carregar diretamente de data/artifacts.
+    """
+    candidate_files = [
+        ARTIFACTS_DIR / "model.pkl",
+        ARTIFACTS_DIR / "pipeline.pkl",
+        ARTIFACTS_DIR / "artifacts.pkl",
+        ARTIFACTS_DIR / "model.joblib",
+        ARTIFACTS_DIR / "pipeline.joblib",
+        ARTIFACTS_DIR / "artifacts.joblib",
+    ]
+
+    chosen = find_first_existing(candidate_files)
+    if chosen is None:
+        raise FileNotFoundError(
+            "Não encontrei artefatos do modelo em data/artifacts. "
+            "Esperado algo como model.pkl, pipeline.pkl ou artifacts.pkl."
+        )
+
+    if chosen.suffix == ".pkl":
+        with open(chosen, "rb") as f:
+            obj = pickle.load(f)
+    else:
+        try:
+            import joblib
+        except Exception as exc:
+            raise RuntimeError(
+                "Foi encontrado um arquivo .joblib, mas a biblioteca joblib não está disponível."
+            ) from exc
+        obj = joblib.load(chosen)
+
+    if isinstance(obj, dict):
+        if "model" in obj:
+            return obj
+        return {"model": obj, "raw_artifact": obj}
+
+    return {"model": obj, "raw_artifact": obj}
+
+
+# =========================================================
 # Cached loading
 # =========================================================
 @st.cache_resource(show_spinner=False)
 def load_model_resource():
-    if load_model_fn is None:
-        return None
-    return load_model_fn()
+    if load_model_fn is not None:
+        try:
+            return load_model_fn()
+        except Exception:
+            pass
+
+    return load_local_artifacts_fallback()
 
 
 @st.cache_data(show_spinner=False)
@@ -230,12 +316,23 @@ def model_bundle_to_model(model_bundle: Any) -> Any:
     return model_bundle
 
 
-def apply_feature_pipeline(input_df: pd.DataFrame, model_bundle: Any) -> pd.DataFrame:
-    if prepare_inference_features_fn is None:
-        raise RuntimeError(
-            "Não encontrei função de inferência em src/features.py. "
-            "Crie prepare_inference_features(df, artifacts=None)."
+def ensure_model_features(input_df: pd.DataFrame) -> pd.DataFrame:
+    missing = [col for col in MODEL_FEATURES if col not in input_df.columns]
+    if missing:
+        raise ValueError(
+            "O arquivo não contém todas as colunas esperadas pelo modelo. "
+            f"Faltando: {missing}"
         )
+    return input_df[MODEL_FEATURES].copy()
+
+
+def apply_feature_pipeline(input_df: pd.DataFrame, model_bundle: Any) -> pd.DataFrame:
+    """
+    Se existir src/features.py, usa a função encontrada.
+    Caso contrário, envia as colunas diretamente ao pipeline/modelo.
+    """
+    if prepare_inference_features_fn is None:
+        return ensure_model_features(input_df)
 
     try:
         return prepare_inference_features_fn(input_df, artifacts=model_bundle)
@@ -249,7 +346,7 @@ def apply_feature_pipeline(input_df: pd.DataFrame, model_bundle: Any) -> pd.Data
 def run_prediction_pipeline(input_df: pd.DataFrame) -> pd.DataFrame:
     model_bundle = load_model_resource()
     if model_bundle is None:
-        raise RuntimeError("Não encontrei load_model() em src/model.py.")
+        raise RuntimeError("Não foi possível carregar o modelo.")
 
     if clean_dataframe_fn is not None:
         try:
@@ -259,6 +356,9 @@ def run_prediction_pipeline(input_df: pd.DataFrame) -> pd.DataFrame:
 
     X = apply_feature_pipeline(input_df.copy(), model_bundle)
     model_obj = model_bundle_to_model(model_bundle)
+
+    if model_obj is None:
+        raise RuntimeError("Modelo não carregado corretamente.")
 
     if predict_fn is not None:
         try:
@@ -323,15 +423,15 @@ def render_sidebar() -> dict[str, Any]:
     )
 
     st.sidebar.markdown("---")
-    st.sidebar.caption("A aplicação utiliza o modelo treinado salvo em `data/artifacts/`.")
+    st.sidebar.caption("A aplicação tenta usar `src/` quando existir, mas também funciona com fallback direto em `data/artifacts/`.")
 
     st.sidebar.markdown("### Cenários rápidos")
     scenario = st.sidebar.selectbox(
         "Selecione um exemplo para preencher na predição individual",
         options=[
             "Nenhum",
-            "Cenário 0 — tende a classe 0",
-            "Cenário 1 — tende a classe 1",
+            "Cenário de alto risco",
+            "Cenário de baixo risco",
         ],
         index=0,
     )
@@ -359,37 +459,37 @@ def get_default_values_from_scenario(scenario: str) -> dict[str, Any]:
         "fase_ideal": "Fase 4 (9º ano)",
     }
 
-    if scenario == "Cenário 0 — tende a classe 0":
+    if scenario == "Cenário de alto risco":
         return {
-            "inde": 4.5,
-            "n_av": 2.0,
-            "iaa": 4.5,
+            "inde": 4.0,
+            "n_av": 3.0,
+            "iaa": 4.0,
             "ieg": 4.0,
-            "ips": 5.0,
+            "ips": 4.0,
             "ipp": 4.0,
-            "ida": 4.5,
-            "mat": 3.5,
+            "ida": 4.0,
+            "mat": 3.0,
             "por": 4.0,
-            "ing": 3.5,
+            "ing": 3.0,
             "ipv": 4.0,
-            "ian": 3.0,
+            "ian": 4.0,
             "fase_ideal": "Fase 4 (9º ano)",
         }
 
-    if scenario == "Cenário 1 — tende a classe 1":
+    if scenario == "Cenário de baixo risco":
         return {
-            "inde": 8.0,
+            "inde": 8.5,
             "n_av": 7.0,
-            "iaa": 7.5,
+            "iaa": 8.0,
             "ieg": 8.0,
-            "ips": 5.5,
+            "ips": 8.0,
             "ipp": 8.0,
-            "ida": 7.0,
-            "mat": 7.0,
+            "ida": 8.0,
+            "mat": 8.0,
             "por": 8.0,
-            "ing": 7.5,
+            "ing": 8.0,
             "ipv": 8.0,
-            "ian": 9.0,
+            "ian": 8.0,
             "fase_ideal": "Fase 7 (3º EM)",
         }
 
@@ -402,13 +502,13 @@ def render_project_status():
     rows = [
         {
             "módulo": "src/features.py",
-            "função": prepare_inference_features_fn.__name__ if prepare_inference_features_fn else "não encontrada",
-            "status": "OK" if prepare_inference_features_fn else "ajustar",
+            "função": prepare_inference_features_fn.__name__ if prepare_inference_features_fn else "fallback direto para features do modelo",
+            "status": "OK" if prepare_inference_features_fn else "fallback",
         },
         {
             "módulo": "src/model.py (load)",
-            "função": load_model_fn.__name__ if load_model_fn else "não encontrada",
-            "status": "OK" if load_model_fn else "ajustar",
+            "função": load_model_fn.__name__ if load_model_fn else "fallback em data/artifacts",
+            "status": "OK" if load_model_fn else "fallback",
         },
         {
             "módulo": "src/model.py (predict)",
@@ -438,15 +538,16 @@ def render_project_status():
 
         if classes_ is not None:
             st.caption(f"Classes carregadas do modelo: {classes_}")
-    except Exception:
-        pass
+            st.caption("Interpretação usada na interface: classe 0 = alto risco | classe 1 = baixo risco")
+    except Exception as exc:
+        st.warning(f"Não foi possível inspecionar as classes do modelo: {exc}")
 
 
 def render_single_prediction(defaults: dict[str, Any]):
     st.subheader("Predição individual")
     st.caption(
-        "Informe os indicadores atuais do aluno para estimar a probabilidade de "
-        "classe 0 ou classe 1 conforme o padrão aprendido pelo modelo."
+        "Informe os indicadores atuais do aluno para estimar o risco. "
+        "Nesta interface: classe 0 = alto risco e classe 1 = baixo risco."
     )
 
     with st.form("predicao_individual"):
@@ -517,13 +618,13 @@ def render_single_prediction(defaults: dict[str, Any]):
 
     row = result_df.iloc[0].to_dict()
     pred = normalize_scalar(row.get("predicao"))
-    prob_1 = float(row["probabilidade_classe_1"]) if "probabilidade_classe_1" in row and pd.notna(row["probabilidade_classe_1"]) else None
     prob_0 = float(row["probabilidade_classe_0"]) if "probabilidade_classe_0" in row and pd.notna(row["probabilidade_classe_0"]) else None
+    prob_1 = float(row["probabilidade_classe_1"]) if "probabilidade_classe_1" in row and pd.notna(row["probabilidade_classe_1"]) else None
 
     label = prediction_label(pred)
-    risk_level = classify_risk(prob_1)
+    risk_level = risk_level_from_prob_risk(prob_0)
 
-    if pred == 1:
+    if pred == 0:
         st.error(f"Resultado da predição: **{label}**")
     else:
         st.success(f"Resultado da predição: **{label}**")
@@ -532,28 +633,28 @@ def render_single_prediction(defaults: dict[str, Any]):
     with c1:
         st.metric("Resultado", label)
     with c2:
-        st.metric("Probabilidade classe 1", f"{prob_1:.2%}" if prob_1 is not None else "-")
+        st.metric("Probabilidade de alto risco", f"{prob_0:.2%}" if prob_0 is not None else "-")
     with c3:
-        st.metric("Nível estimado", risk_level)
+        st.metric("Nível estimado de risco", risk_level)
 
-    if prob_1 is not None:
+    if prob_0 is not None:
         st.write("### Intensidade do risco estimado")
-        st.progress(min(max(prob_1, 0.0), 1.0))
+        st.progress(min(max(prob_0, 0.0), 1.0))
         st.caption(
-            "Classe 1 representa a classe positiva do modelo. "
-            "Classe 0 representa a classe negativa do modelo."
+            "Interpretação da interface: "
+            "classe 0 = alto risco | classe 1 = baixo risco."
         )
 
     d1, d2 = st.columns(2)
     with d1:
-        if prob_1 is not None:
-            st.metric("Prob. classe 1", f"{prob_1:.2%}")
-    with d2:
         if prob_0 is not None:
-            st.metric("Prob. classe 0", f"{prob_0:.2%}")
+            st.metric("Prob. classe 0 (alto risco)", f"{prob_0:.2%}")
+    with d2:
+        if prob_1 is not None:
+            st.metric("Prob. classe 1 (baixo risco)", f"{prob_1:.2%}")
 
     st.write("### Interpretação resumida")
-    reasons = build_prediction_explanation(input_df.iloc[0], prob_1)
+    reasons = build_prediction_explanation(input_df.iloc[0], prob_0)
     for reason in reasons:
         st.write(f"- {reason}")
 
@@ -564,8 +665,8 @@ def render_single_prediction(defaults: dict[str, Any]):
     with st.expander("Entenda o significado do resultado"):
         st.markdown(
             """
-**Classe 1**: representa a classe positiva aprendida pelo modelo, associada aos padrões históricos da base.  
-**Classe 0**: representa a classe negativa aprendida pelo modelo.
+**Classe 0**: maior risco.  
+**Classe 1**: menor risco.
 
 As probabilidades mostram o grau de confiança do modelo em cada classe.  
 A decisão final considera a classe com maior probabilidade.
@@ -622,12 +723,12 @@ def render_batch_prediction():
         c1, c2, c3 = st.columns(3)
         c1.metric("Registros processados", len(display_df))
         c2.metric(
-            "Classe 1",
-            int((display_df["predicao"] == 1).sum()) if "predicao" in display_df.columns else 0,
+            "Alto risco (classe 0)",
+            int((display_df["predicao"] == 0).sum()) if "predicao" in display_df.columns else 0,
         )
         c3.metric(
-            "Classe 0",
-            int((display_df["predicao"] == 0).sum()) if "predicao" in display_df.columns else 0,
+            "Baixo risco (classe 1)",
+            int((display_df["predicao"] == 1).sum()) if "predicao" in display_df.columns else 0,
         )
 
         if "risco_estimado" in display_df.columns:
@@ -727,9 +828,8 @@ def main():
     )
 
     st.info(
-        "Modelo utilizado: Regressão Logística. "
-        "A classe 1 representa a classe positiva aprendida pelo modelo, "
-        "e a classe 0 representa a classe negativa."
+        "Interpretação adotada nesta versão: "
+        "classe 0 = alto risco | classe 1 = baixo risco."
     )
 
     tabs = st.tabs(
